@@ -4,7 +4,7 @@ Version:     0.0.2
 Synopsis:    aws client lib for amazon web services
 Authors:     Barko, William Le Ferrand, Hhugo, Msimon
 License:     MIT
-Plugins:     META (0.3), StdFiles (0.3)
+Plugins:     META (0.3), DevFiles (0.3), StdFiles (0.3)
 BuildTools:  ocamlbuild
 
 Flag all
@@ -17,11 +17,11 @@ Flag tools
 
 Flag cohttp
   Description: cohttp
-  Default: false
+  Default: true
 
 Flag ocsigen
   Description: ocsigen
-  Default: true
+  Default: false
 
 Library aws
   Path:       src
@@ -29,19 +29,17 @@ Library aws
               EC2_factory, SDB_factory, S3_factory, SQS_factory, FPS_factory,
               Dynamo_factory, IAM_factory, SES_factory
   InternalModules: Xml
-  BuildDepends: lwt, lwt.unix, lwt.syntax, netstring, pcre,
-                cryptokit, netstring, calendar, xmlm, yojson
+  BuildDepends: lwt, lwt.unix, lwt.syntax, cryptokit, calendar, xmlm, yojson, re.pcre, uri
 
-Library "cohttp"
+Library cohttp
   Path:       src/cohttp
   Build$:     flag(cohttp) || flag(all)
   Install$:   flag(cohttp) || flag(all)
   Modules:    EC2, SDB, S3, SQS, FPS, Dynamo, IAM, SES
   FindlibParent: aws
-  BuildDepends: lwt, lwt.unix, lwt.syntax, netstring, pcre,
-                cryptokit, netstring, calendar, xmlm, cohttp, aws
+  BuildDepends: aws
 
-Library "ocsigen"
+Library ocsigen
   Path:       src/ocsigen
   Build$:     flag(ocsigen) || flag(all)
   Install$:   flag(ocsigen) || flag(all)
@@ -50,8 +48,7 @@ Library "ocsigen"
   ByteOpt: -thread
   NativeOpt: -thread
   FindlibParent: aws
-  BuildDepends: lwt, lwt.unix, lwt.syntax, netstring, pcre,
-                cryptokit, netstring, calendar, xmlm, ocsigenserver, aws
+  BuildDepends: lwt, lwt.unix, lwt.syntax, netstring, pcre, cryptokit, calendar, xmlm, ocsigenserver, aws
 
 Executable backup
   Path:         tools
@@ -60,7 +57,7 @@ Executable backup
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax,netstring,cryptokit,calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
 
 Executable s3c
   Path:         tools
@@ -69,7 +66,7 @@ Executable s3c
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax,netstring,cryptokit,calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
 
 Executable ec2sh
   Path:         tools
@@ -78,7 +75,7 @@ Executable ec2sh
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax,netstring,cryptokit,calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
 
 Executable listdomain
   Path:         tools
@@ -87,7 +84,7 @@ Executable listdomain
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax,netstring,cryptokit,calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
 
 Executable update
   Path:         tools
@@ -96,7 +93,7 @@ Executable update
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax,netstring,cryptokit,calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
 
 Executable deldomain
   Path:         tools
