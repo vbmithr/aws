@@ -127,7 +127,7 @@ let sign_request creds ?(sandbox=false) http_method params service_kind =
     let key_equals_value = Util.encode_key_equals_value sorted_params in
     let uri_query_component = String.concat "&" key_equals_value in
     let string_to_sign = String.concat "\n" [
-      Util.string_of_t http_method ;
+      Util.string_of_http_method http_method ;
       String.lowercase http_host ;
       http_uri ;
       uri_query_component
@@ -377,10 +377,10 @@ struct
         let find x = List.assoc x params in
         try
           Some {
-            certificate_url = find "certificateUrl";
-            signature = find "signature";
-            signature_version = int_of_string (find "signatureVersion");
-            signature_method = find "signatureMethod"
+            certificate_url = List.hd (find "certificateUrl");
+            signature = List.hd (find "signature");
+            signature_version = int_of_string (List.hd (find "signatureVersion"));
+            signature_method = List.hd (find "signatureMethod")
           }
         with
           | Not_found -> None (* some required parameter is not found *)
@@ -388,7 +388,7 @@ struct
 
 
       let of_url uri =
-        let params = Aws_util.url_params uri in
+        let params = Uri.query (Uri.of_string uri) in
         match signature_info params with
           | None -> None
           | Some signature_info ->

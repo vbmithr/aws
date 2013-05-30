@@ -3,6 +3,7 @@
 open Lwt
 open Lwt_io
 
+module Pcre = Re_pcre
 module StringMap = Map.Make(String)
 
 let list_domains creds =

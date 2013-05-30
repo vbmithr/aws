@@ -3,6 +3,7 @@ struct
 
 open Lwt
 
+module Pcre = Re_pcre
 module Util = Aws_util
 
 module C = CalendarLib.Calendar
@@ -12,62 +13,12 @@ exception Service_down
 
 (* Miscellaneous *****************************************************************)
 
-let remove_newline =
-  Pcre.replace ~rex:(Pcre.regexp "\n") ~templ:""
-
-let base64 str =
-  (* the encoder is consumed by its use, so we have to recreated *)
-  let b64_encoder = Cryptokit.Base64.encode_multiline () in
-  let encoded = Cryptokit.transform_string b64_encoder str in
-
-  (* we want to retain the trailing '=' characters, but eliminate the
-     newlines.  Unfortunately, [encode_compact] has neither. *)
-  remove_newline encoded
-
-let encode_url ?(safe=false) str =
-(*  if not safe then
-    Netencoding.Url.encode ~plus:false str
-  else *)
-    begin
-      let strlist = ref [] in
-      let code = Char.code in
-      for i = 0 to String.length str - 1 do
-        let c = code (str.[i]) in
-        if
-          (65 <= c && c <= 90)
-          || (48 <= c && c <= 57 )
-          || (97 <= c && c <= 122)
-          || (c = 126)
-          || (c = 95)
-          || (c = 46)
-          || (c = 45)
-          (* || (c = 47) *)
-        then
-	  strlist := Printf.sprintf "%c" str.[i] :: !strlist
-	else if (c = 32)
-	then
-	  strlist := Printf.sprintf "%%20" :: !strlist
-        else
-	  strlist :=  Printf.sprintf "%%%X" c :: !strlist
-      done ;
-      String.concat "" (List.rev !strlist)
-    end
-
-let encode_key_equal_value ?(safe=false) (k,v) =
-  (encode_url ~safe k) ^ "=" ^ (encode_url ~safe v)
-
-let encode_key_equals_value ?safe kvs =
-  List.map (encode_key_equal_value ?safe) kvs
-
-let sort_assoc_list kv_list =
-  List.sort (fun (k1,_) (k2,_) -> String.compare k1 k2) kv_list
-
 let host = "sts.amazonaws.com"
 
 let sign_request aws_access_key_id aws_secret_access_key params =
   let signature =
-    let sorted_params = sort_assoc_list params in
-    let key_equals_value = encode_key_equals_value sorted_params in
+    let sorted_params = Util.sort_assoc_list params in
+    let key_equals_value = Util.encode_key_equals_value sorted_params in
     let uri_query_component = String.concat "&" key_equals_value in
     let string_to_sign = String.concat "\n" [
       "POST" ;
@@ -79,7 +30,7 @@ let sign_request aws_access_key_id aws_secret_access_key params =
     let hmac_sha256_encoder = Cryptokit.MAC.hmac_sha256 aws_secret_access_key in
     let signed_string = Cryptokit.hash_string hmac_sha256_encoder string_to_sign in
     let signed_string = String.sub signed_string 0 ((String.length signed_string) - 0) in
-    let b64 = base64 signed_string in
+    let b64 = Util.base64 signed_string in
     String.sub b64 0 ((String.length b64) - 0)
   in
   ("Signature", signature)::params
@@ -137,7 +88,7 @@ let get_session_token ?duration ?(version="2011-06-15") aws_access_key_id aws_se
     ::[] in
   let params = Util.filter_map (fun x -> x) content in
   let params = sign_request aws_access_key_id aws_secret_access_key params in
-  let key_equals_value = encode_key_equals_value params in
+  let key_equals_value = Util.encode_key_equals_value params in
   let content = String.concat "&" key_equals_value in
   lwt _,s = HC.post ~headers:["Content-Type","application/x-www-form-urlencoded"] ~body:(`String content) (Printf.sprintf "https://%s/" host) in
   let xml = xml_of_string s in

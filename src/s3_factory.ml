@@ -1,6 +1,7 @@
 module Make = functor (HC : Aws_sigs.HTTP_CLIENT) ->
   struct
 
+module Pcre = Re_pcre
 module C = CalendarLib.Calendar
 module P = CalendarLib.Printer.CalendarPrinter
 module K = Cryptokit
@@ -132,7 +133,7 @@ let find_p_child_fail kids key =
 
 (* replace a substring of whitespace with a single space *)
 let squash_whitespace =
-  Pcre.replace ~rex:(Pcre.regexp "[[:space:]]+") ~templ:" "
+  Pcre.substitute ~rex:(Pcre.regexp "[[:space:]]+") ~subst:(fun (_:string) -> " ")
 
 type sub_resource = [
 | `acl
@@ -251,7 +252,7 @@ let auth_hdr
 
   let string_to_sign =
     let buf = new buffer 100 in
-    buf#add (Util.string_of_t http_method); buf#add "\n";
+    buf#add (Util.string_of_http_method http_method); buf#add "\n";
     buf#add content_md5; buf#add "\n";
     buf#add content_type; buf#add "\n";
     buf#add date; buf#add "\n";
@@ -286,7 +287,7 @@ let error_msg body =
 let s3_region_regexp = Pcre.regexp "s3(-(.*))?"
 
 let region_of_endpoint s =
-  match Pcre.split ~pat:"\\." s with
+  match Pcre.split ~rex:(Pcre.regexp "\\.") s with
     | [ _bucket ; s3_region_s ; "amazonaws" ; "com" ] -> (
       (match Pcre.extract ~rex:s3_region_regexp s3_region_s with
         | [| _; _; region_s |] ->  (
@@ -672,21 +673,21 @@ let list_objects ?prefix ?marker ?max_keys creds region bucket =
   let params =
     match prefix with
       | None -> params
-      | Some p -> ("prefix", p) :: params
+      | Some p -> ("prefix", [p]) :: params
   in
   let params =
     match marker with
       | None -> params
-      | Some m ->  ("marker", m) :: params
+      | Some m ->  ("marker", [m]) :: params
   in
   let params =
     match max_keys with
       | None -> params
-      | Some mk -> ("max-keys", string_of_int mk) :: params
+      | Some mk -> ("max-keys", [string_of_int mk]) :: params
   in
 
   let request_url = (service_url_of_region region) ^ (Util.encode_url bucket) ^
-    "?" ^ (Netencoding.Url.mk_url_encoded_parameters params) in
+    "?" ^ (Uri.encoded_of_query params) in
 
   try_lwt
     lwt response_headers, response_body = HC.get ~headers request_url in

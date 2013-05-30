@@ -68,7 +68,7 @@ let make_request ~creds post_params =
     ("AWSAccessKeyId",creds.Creds.aws_access_key_id);
     ("Timestamp", ses_timestamp ())
   ] @ post_params in
-  let body = `String (Util.encode_post_url post_params) in
+  let body = `String (Uri.encoded_of_query post_params) in
   lwt _,s = HC.post ~headers ~body endpoint in
   let xml = Xml.xml_of_string s in
   check_error xml ;

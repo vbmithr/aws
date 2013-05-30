@@ -1,4 +1,3 @@
-
 module Make = functor (HC : Aws_sigs.HTTP_CLIENT) ->
   struct
 
@@ -16,6 +15,7 @@ module Util = Aws_util
 exception Error of string
 
 let sprint = Printf.sprintf
+let service = "ec2"
 
 (* convenience functions for navigating xml nodes *)
 let find_kids e_list k =
@@ -60,57 +60,6 @@ let find_e_kid_else_error e_list k =
     | None -> raise (Error k)
     | Some e -> e
 
-
-(* compute the AWS SHA1 signature that to annotate a Query-style request *)
-let signed_request
-    ?region
-    ?(http_method=`GET)
-    ?(http_uri="/")
-    ?expires_minutes
-    creds
-    params  =
-
-  let http_host =
-    match region with
-      | Some r -> sprint "ec2.%s.amazonaws.com" r
-      | None -> "ec2.amazonaws.com"
-  in
-
-  let params =
-    ("Version", "2010-08-31" ) ::
-      ("SignatureVersion", "2") ::
-      ("SignatureMethod", "HmacSHA1") ::
-      ("AWSAccessKeyId", creds.aws_access_key_id) ::
-      params
-  in
-
-  let params =
-    match expires_minutes with
-      | Some i -> ("Expires", Util.minutes_from_now i) :: params
-      | None -> ("Timestamp", Util.now_as_string ()) :: params
-  in
-
-  let signature =
-    let sorted_params = Util.sort_assoc_list params in
-    let key_equals_value = Util.encode_key_equals_value sorted_params in
-    let uri_query_component = String.concat "&" key_equals_value in
-    let string_to_sign = String.concat "\n" [
-      Util.string_of_t http_method ;
-      String.lowercase http_host ;
-      http_uri ;
-      uri_query_component
-    ]
-    in
-    let hmac_sha1_encoder = Cryptokit.MAC.hmac_sha1 creds.aws_secret_access_key in
-    let signed_string = Cryptokit.hash_string hmac_sha1_encoder string_to_sign in
-    Util.base64 signed_string
-  in
-
-  let params = ("Signature", signature) :: params in
-  let params_s = String.concat "&" (Util.encode_key_equals_value params) in
-  sprint "http://%s%s?%s" http_host http_uri params_s
-
-
 (* describe regions *)
 let item_of_xml = function
   | X.E("item",_,[
@@ -130,9 +79,9 @@ let describe_regions_response_of_xml = function
   | _ -> raise (Error "DescribeRegionsResponse")
 
 let describe_regions ?expires_minutes creds =
-  let request = signed_request creds ?expires_minutes
-    ["Action", "DescribeRegions" ] in
-  lwt header, body = HC.get request in
+  let url, params = Util.signed_request ?expires_minutes ~service ~creds
+    ~params:["Action", ["DescribeRegions"] ] () in
+  lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
   let xml = X.xml_of_string body in
   return (describe_regions_response_of_xml xml)
 
@@ -179,8 +128,8 @@ let describe_spot_price_history_of_xml = function
 let filters_args kv_list =
   let _, f = List.fold_left (
     fun (c,accu) (k,v) ->
-      let kh = sprint "Filter.%d.Name" c, k in
-      let vh = sprint "Filter.%d.Value" c, v in
+      let kh = sprint "Filter.%d.Name" c, [k] in
+      let vh = sprint "Filter.%d.Value" c, [v] in
       c+1, kh :: vh :: accu
   ) (1,[]) kv_list
   in
@@ -233,10 +182,10 @@ let describe_spot_price_history ?expires_minutes ?region ?instance_type creds  =
       | Some it -> filters_args ["instance-type", string_of_instance_type it ]
       | None -> []
   in
-  let request = signed_request creds ?region ?expires_minutes
-    (("Action", "DescribeSpotPriceHistory") :: args)
+  let url, params = Util.signed_request ~service ~creds ?region ?expires_minutes
+    ~params:(("Action", ["DescribeSpotPriceHistory"]) :: args) ()
   in
-  lwt header, body = HC.get request in
+  lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
   let xml = X.xml_of_string body in
   return (describe_spot_price_history_of_xml xml)
 
@@ -334,16 +283,16 @@ let error_msg body =
 let instance_id_args instance_ids =
   Util.list_map_i (
     fun i instance_id ->
-      sprint "InstanceId.%d" (i+1), instance_id
+      sprint "InstanceId.%d" (i+1), [instance_id]
   ) instance_ids
 
 let terminate_instances ?expires_minutes ?region creds instance_ids =
   let args = instance_id_args instance_ids in
-  let request = signed_request creds ?region ?expires_minutes
-    (("Action", "TerminateInstances") :: args)
+  let url, params  = Util.signed_request ~service ~creds ?region ?expires_minutes
+    ~params:(("Action", ["TerminateInstances"]) :: args) ()
   in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     let xml = X.xml_of_string body in
     return (`Ok  (terminate_instances_of_xml xml))
   with
@@ -512,11 +461,11 @@ let describe_instances_of_xml = function
 
 let describe_instances ?expires_minutes ?region creds instance_ids =
   let args = instance_id_args instance_ids in
-  let request = signed_request creds ?expires_minutes ?region
-    (("Action", "DescribeInstances") :: args)
+  let url, params = Util.signed_request ~service ~creds ?expires_minutes ?region
+    ~params:(("Action", ["DescribeInstances"]) :: args) ()
   in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     let xml = X.xml_of_string body in
     return (`Ok (describe_instances_of_xml xml))
   with
@@ -548,30 +497,23 @@ let run_instances
     ~min_count
     ~max_count =
   let args = [
-    "Action", "RunInstances" ;
-    "MinCount", string_of_int min_count ;
-    "MaxCount", string_of_int max_count ;
-    "ImageId", image_id
+    "Action", ["RunInstances"] ;
+    "MinCount", [string_of_int min_count] ;
+    "MaxCount", [string_of_int max_count] ;
+    "ImageId", [image_id]
   ]
   in
-  let args = augment_opt (fun az -> "Placement.AvailabilityZone", az)
-    args placement_availability_zone in
-  let args = augment_opt (fun pg -> "Placement.GroupName", pg)
-    args placement_group in
-
-  let args = augment_opt (fun ud -> "UserData", Util.base64 ud)
-    args user_data in
-
-  let args = augment_opt (fun kn -> "KeyName", kn) args key_name in
-  let args = augment_opt (fun it -> "InstanceType", string_of_instance_type it)
-    args instance_type in
-  let sg = Util.list_map_i (
-    fun i security_group -> sprint "SecurityGroup.%d" i, security_group ) security_groups in
+  let args = augment_opt (fun az -> "Placement.AvailabilityZone", [az]) args placement_availability_zone in
+  let args = augment_opt (fun pg -> "Placement.GroupName", [pg]) args placement_group in
+  let args = augment_opt (fun ud -> "UserData", [Util.base64 ud]) args user_data in
+  let args = augment_opt (fun kn -> "KeyName", [kn]) args key_name in
+  let args = augment_opt (fun it -> "InstanceType", [string_of_instance_type it]) args instance_type in
+  let sg = Util.list_map_i (fun i security_group -> sprint "SecurityGroup.%d" i, [security_group] ) security_groups in
   let args = args @ sg in
 
-  let request = signed_request creds ?expires_minutes ?region args in
+  let url, params = Util.signed_request ~service ~creds ?expires_minutes ?region ~params:args () in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     let xml = X.xml_of_string body in
     return (`Ok (run_instances_of_xml xml))
   with
@@ -635,7 +577,7 @@ let minimal_spot_instance_request ~spot_price ~image_id = {
 let spot_instance_request_args sir =
   let args = ref [] in
   let add k f = function
-    | Some x -> args := (k, f x) :: !args
+    | Some x -> args := (k, [f x]) :: !args
     | None -> ()
   in
   let addid k = add k (fun s -> s) in
@@ -735,11 +677,11 @@ let request_spot_instances_of_xml = function
 
 let request_spot_instances ?region creds spot_instance_request =
   let args = spot_instance_request_args spot_instance_request in
-  let request = signed_request creds ?region
-    (("Action", "RequestSpotInstances") :: args)
+  let url, params = Util.signed_request ~service ~creds ?region
+    ~params:(("Action", ["RequestSpotInstances"]) :: args) ()
   in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     let xml = X.xml_of_string body in
     let rsp = request_spot_instances_of_xml xml in
     return (`Ok rsp)
@@ -761,15 +703,15 @@ let describe_spot_instance_requests_of_xml = function
 let sir_args_of_ids sir_ids =
   Util.list_map_i (
     fun i sir_id ->
-      sprint "SpotInstanceRequestId.%d" (i+1), sir_id
+      sprint "SpotInstanceRequestId.%d" (i+1), [sir_id]
   ) sir_ids
 
 let describe_spot_instance_requests ?region creds sir_ids =
   let sir_ids_args = sir_args_of_ids sir_ids in
-  let request = signed_request creds ?region
-    (("Action", "DescribeSpotInstanceRequests") :: sir_ids_args) in
+  let url, params = Util.signed_request ~service ~creds ?region
+    ~params:(("Action", ["DescribeSpotInstanceRequests"]) :: sir_ids_args) () in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     let xml = X.xml_of_string body in
     return (`Ok (describe_spot_instance_requests_of_xml xml))
   with
@@ -794,10 +736,10 @@ let cancel_spot_instance_requests_of_xml = function
 
 let cancel_spot_instance_requests ?region creds sir_ids =
   let sir_ids_args = sir_args_of_ids sir_ids in
-  let args = ("Action","CancelSpotInstanceRequests") :: sir_ids_args in
-  let request = signed_request ?region creds args in
+  let args = ("Action", ["CancelSpotInstanceRequests"]) :: sir_ids_args in
+  let url, params = Util.signed_request ~service ?region ~creds ~params:args () in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     let xml = X.xml_of_string body in
     return (`Ok (cancel_spot_instance_requests_of_xml xml))
   with
@@ -839,10 +781,10 @@ let describe_tags_response_of_xml = function
   | _ -> raise (Error "DescribeTagsResponse:2")
 
 let describe_tags creds = (* TODO filters *)
-  let args = ["Action","DescribeTags"] in
-  let request = signed_request creds args in
+  let args = ["Action", ["DescribeTags"]] in
+  let url, params = Util.signed_request ~service ~creds ~params:args () in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     let xml = X.xml_of_string body in
     let items = describe_tags_response_of_xml xml in
     return (`Ok items)
@@ -851,43 +793,43 @@ let describe_tags creds = (* TODO filters *)
 
 
 let create_tags creds tags =
-  let args = ["Action", "CreateTags"] in
+  let args = ["Action", ["CreateTags"]] in
   let _, args = List.fold_left (
     fun (count, accu) tag ->
-      let resource = sprint "ResourceId.%d" count, tag#resource_id in
-      let key = sprint "Tag.%d.Key" count, tag#key in
+      let resource = sprint "ResourceId.%d" count, [tag#resource_id] in
+      let key = sprint "Tag.%d.Key" count, [tag#key] in
       let value = sprint "Tag.%d.Value" count,
         (match tag#value_opt with
-          | None -> ""
-          | Some value -> value
+          | None -> [""]
+          | Some value -> [value]
         ) in
       count+1, resource :: key :: value :: accu
   ) (0, args) tags in
-  let request = signed_request creds args in
+  let url, params = Util.signed_request ~service ~creds ~params:args () in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     return `Ok
   with
     | HC.Http_error (_,_,body) -> return (error_msg body)
 
 let delete_tags creds tags =
-  let args = ["Action", "DeleteTags"] in
+  let args = ["Action", ["DeleteTags"]] in
   let _,  args = List.fold_left (
     fun (count, accu) tag ->
-      let resource = sprint "ResourceId.%d" count, tag#resource_id in
-      let key = sprint "Tag.%d.Key" count, tag#key in
+      let resource = sprint "ResourceId.%d" count, [tag#resource_id] in
+      let key = sprint "Tag.%d.Key" count, [tag#key] in
       let accu' =
         if tag#empty_value then
-          let value = sprint "Tag.%d.Value" count, "" in
+          let value = sprint "Tag.%d.Value" count, [""] in
           value :: resource :: key :: accu
         else
           resource :: key :: accu
       in
       count+1, accu'
   ) (0, args) tags in
-  let request = signed_request creds args in
+  let url, params = Util.signed_request ~service ~creds ~params:args () in
   try_lwt
-    lwt header, body = HC.get request in
+    lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
     return `Ok
   with
     | HC.Http_error (_,_,body) -> return (error_msg body)

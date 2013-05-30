@@ -1,10 +1,12 @@
+module Pcre = Re_pcre
+
 (* Miscellaneous ***********************)
 
 let remove_newline =
-  Pcre.replace ~rex:(Pcre.regexp "\n") ~templ:""
+  Pcre.substitute ~rex:(Pcre.regexp "\n") ~subst:(fun (_:string) -> "")
 
 let split_slash s =
-  match Pcre.split ~pat:"/" s with
+  match Pcre.split ~rex:(Pcre.regexp "/") s with
   | [x1 ;x2 ] -> x1,x2
   | _ -> assert false
 
@@ -23,54 +25,13 @@ let base64_decoder str =
 
 let colon_space (k, v) = k ^ ": " ^ v
 
-let encode_url ?(safe=false) str =
-  (* if not safe then Netencoding.Url.encode ~plus:false str else *)
-  begin
-    let strlist = ref [] in
-    for i = 0 to String.length str - 1 do
-      let c = Char.code (str.[i]) in
-      if
-        (65 <= c && c <= 90) ||
-          (48 <= c && c <= 57 ) ||
-          (97 <= c && c <= 122) ||
-          (c = 126) ||
-          (c = 95) ||
-          (c = 46) ||
-          (c = 45) (* || (c = 47) *)
-      then
-	      strlist := Printf.sprintf "%c" str.[i] :: !strlist
-      else
-	      strlist := Printf.sprintf "%%%X" c :: !strlist
-    done ;
-    String.concat "" (List.rev !strlist)
-  end
+let encode_url = Uri.pct_encode
 
-let encode_key_equals_value ?(safe=false) kvs =
+let encode_key_equals_value kvs =
   List.map (
     fun (k,v) ->
-      (encode_url ~safe k) ^ "=" ^ (encode_url ~safe v)
+      (encode_url k) ^ "=" ^ (encode_url v)
   ) kvs
-
-(* return the query parameters of a url, if any, as an association
-   list; eg [url_params "somegrabage?x=y&z&p=q"] will return
-   ["x","y";"z","";"p","q"] *)
-let url_params uri =
-  match Pcre.split ~pat:"\\?" uri with
-  | [before_question_mark ; after_question_mark] ->
-    let kvs = Pcre.split ~pat:"&" after_question_mark in
-    List.fold_left (
-      fun accu kv ->
-        match Pcre.split ~max:2 ~pat:"=" kv with (* "x=y=z" -> ["x";"y=z"] *)
-        | [k; v] ->
-          let kv = Netencoding.Url.decode k, Netencoding.Url.decode v in
-          kv :: accu
-        | [k] ->
-          let kv = Netencoding.Url.decode k, "" in
-          kv :: accu
-        | _ -> accu
-    ) [] kvs
-  | _ -> []
-
 
 let file_size path =
   let s = Unix.stat path in
@@ -163,16 +124,14 @@ let file_contents path =
   lwt () = Lwt_io.close inchan in
   Lwt.return contents
 
-let string_of_t = function
+type http_method = [ `GET | `PUT | `HEAD | `DELETE | `POST ]
+
+let string_of_http_method = function
   | `GET -> "GET"
   | `PUT -> "PUT"
   | `HEAD -> "HEAD"
   | `DELETE -> "DELETE"
   | `POST -> "POST"
-
-(* Post encoding *)
-
-let encode_post_url = Netencoding.Url.mk_url_encoded_parameters
 
 let filter_map_rev f l =
   let rec aux acc = function
@@ -204,6 +163,49 @@ let make tm_year tm_mon tm_mday tm_hour tm_min tm_sec _ =
     let tm = {tm_year;tm_mon;tm_mday;tm_hour;tm_min;tm_sec;tm_wday;tm_yday;tm_isdst} in
     Int64.of_float (fst (mktime tm))
   )
+
+let signed_request
+    ?(region="")
+    ?(http_method=`POST)
+    ?(http_uri="/")
+    ?expires_minutes
+    ~service
+    ~creds
+    ~params () =
+
+  let http_host = service ^ (if region <> "" then "." ^ region else "") ^ ".amazonaws.com" in
+  let params =
+    ("Version", ["2009-04-15"] ) ::
+      ("SignatureVersion", ["2"]) ::
+      ("SignatureMethod", ["HmacSHA1"]) ::
+      ("AWSAccessKeyId", [creds.aws_access_key_id]) ::
+      params
+  in
+  let params =
+    match expires_minutes with
+      | Some i -> ("Expires", [minutes_from_now i]) :: params
+      | None -> ("Timestamp", [now_as_string ()]) :: params
+  in
+  (* sorting the params assoc list *)
+  let params = sort_assoc_list params in
+
+  let signature =
+    let uri_query_component = Uri.encoded_of_query params in
+    let string_to_sign = String.concat "\n" [
+      string_of_http_method http_method ;
+      String.lowercase http_host ;
+      http_uri ;
+      uri_query_component
+    ]
+    in
+
+    let hmac_sha1_encoder = Cryptokit.MAC.hmac_sha1 creds.aws_secret_access_key in
+    let signed_string = Cryptokit.hash_string hmac_sha1_encoder string_to_sign in
+    base64 signed_string
+  in
+  let params = ("Signature", [signature]) :: params in
+  (http_host ^ http_uri), params
+
 
 (* Copyright (c) 2011, barko 00336ea19fcb53de187740c490f764f4 All
    rights reserved.
