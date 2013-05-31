@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 316447792a32891165c32d7c92173ddd)
+# DO NOT EDIT (digest: b86570fe0533d264654400105ffec4f2)
 version = "0.0.2"
 description = "aws client lib for amazon web services"
 requires =
@@ -24,7 +24,7 @@ package "ocsigen" (
 package "cohttp" (
  version = "0.0.2"
  description = "aws client lib for amazon web services"
- requires = "aws"
+ requires = "aws cohttp"
  archive(byte) = "cohttp.cma"
  archive(byte, plugin) = "cohttp.cma"
  archive(native) = "cohttp.cmxa"

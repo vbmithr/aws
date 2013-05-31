@@ -1,3 +1,3 @@
-module M = SES_factory.Make (Http_client10)
+module M = SES_factory.Make (Client)
 
 include M

@@ -37,7 +37,7 @@ Library cohttp
   Install$:   flag(cohttp) || flag(all)
   Modules:    EC2, SDB, S3, SQS, FPS, Dynamo, IAM, SES
   FindlibParent: aws
-  BuildDepends: aws
+  BuildDepends: aws, cohttp
 
 Library ocsigen
   Path:       src/ocsigen

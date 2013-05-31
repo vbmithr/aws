@@ -1,3 +1,3 @@
-module M = FPS_factory.Make (Http_client10)
+module M = FPS_factory.Make (Client)
 
 include M

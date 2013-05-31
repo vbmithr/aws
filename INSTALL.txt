@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: bd2353c4d28f8ef777388c60eba353e1) *)
+(* DO NOT EDIT (digest: 64338a5f08bdd577ca9dbf4c69453366) *)
 This is the INSTALL file for the aws distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -22,12 +22,12 @@ In order to compile this package, you will need:
 * yojson for library aws
 * re for library aws
 * uri for library aws
+* cohttp for library cohttp, executable backup, executable ec2sh,
+  executable listdomain, executable s3c, executable update
 * netstring for library ocsigen, executable backup, executable ec2sh,
   executable listdomain, executable s3c, executable update
 * pcre for library ocsigen
 * ocsigenserver for library ocsigen
-* cohttp for executable backup, executable ec2sh, executable listdomain,
-  executable s3c, executable update
 
 Installing
 ==========

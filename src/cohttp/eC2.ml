@@ -1,3 +1,3 @@
-module M = EC2_factory.Make (Http_client10)
+module M = EC2_factory.Make (Client)
 
 include M

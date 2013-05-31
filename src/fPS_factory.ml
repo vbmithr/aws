@@ -1,4 +1,3 @@
-
 module Make = functor (HC : Aws_sigs.HTTP_CLIENT) ->
   struct
 
@@ -369,18 +368,20 @@ struct
 
       type t = {
         signature_info : signature_info;
-        params : (string * string) list;
+        params : (string * string list) list;
         result : [ `Bad of string | `Token of tok ]
       }
 
+      let find x params = List.hd (List.assoc x params)
+      let find_opt x params = try Some (List.hd (List.assoc x params)) with Not_found -> None
+
       let signature_info params =
-        let find x = List.assoc x params in
         try
           Some {
-            certificate_url = List.hd (find "certificateUrl");
-            signature = List.hd (find "signature");
-            signature_version = int_of_string (List.hd (find "signatureVersion"));
-            signature_method = List.hd (find "signatureMethod")
+            certificate_url = find "certificateUrl" params;
+            signature = find "signature" params;
+            signature_version = int_of_string (find "signatureVersion" params);
+            signature_method = find "signatureMethod" params
           }
         with
           | Not_found -> None (* some required parameter is not found *)
@@ -392,25 +393,23 @@ struct
         match signature_info params with
           | None -> None
           | Some signature_info ->
-            let find_opt x = try Some (List.assoc x params) with Not_found -> None in
-            match find_opt "errorMessage" with
-              | Some msg ->
-                Some { signature_info; params; result = `Bad msg }
+            match find_opt "errorMessage" params with
+              | Some msg -> Some { signature_info; params; result = `Bad msg }
               | None -> (
 
-                match find_opt "tokenID" with
+                match find_opt "tokenID" params with
                   | None -> None
                   | Some token_id ->
                     let tok = {
                       token_id;
-                      address_line_1 = find_opt "addressLine1";
-                      address_line_2 = find_opt "addressLine2";
-                      address_name = find_opt "addressName";
-                      city = find_opt "city";
-                      state = find_opt "state";
-                      zip = find_opt "zip";
-                      phone_number = find_opt "phoneNumber";
-                      expiry = find_opt "expiry";
+                      address_line_1 = find_opt "addressLine1" params;
+                      address_line_2 = find_opt "addressLine2" params;
+                      address_name = find_opt "addressName" params;
+                      city = find_opt "city" params;
+                      state = find_opt "state" params;
+                      zip = find_opt "zip" params;
+                      phone_number = find_opt "phoneNumber" params;
+                      expiry = find_opt "expiry" params;
                     } in
                     Some { signature_info; params; result = `Token tok }
               )

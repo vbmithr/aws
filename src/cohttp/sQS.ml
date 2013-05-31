@@ -1,2 +1,2 @@
-module M = SQS_factory.Make (Http_client10)
+module M = SQS_factory.Make (Client)
 include M

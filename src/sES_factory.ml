@@ -52,7 +52,7 @@ let build_ses_header ~creds =
   let date = CalendarLib.Printer.Calendar.sprint "%a, %d %b %Y %T %z" (CalendarLib.Calendar.now ()) in
   let hmac_sha1_encoder = (Cryptokit.MAC.hmac_sha1 creds.Creds.aws_secret_access_key) in
   let sign = Cryptokit.hash_string hmac_sha1_encoder date in
-  let sign_64 = Netencoding.Base64.encode sign in
+  let sign_64 = Util.base64 sign in
   let h = Printf.sprintf "AWS3-HTTPS AWSAccessKeyId=%s, Algorithm=HmacSHA1, Signature=%s" creds.Creds.aws_access_key_id sign_64 in
   [
     ("Date", date) ;
@@ -65,8 +65,8 @@ let ses_timestamp () =
 let make_request ~creds post_params =
   let headers = build_ses_header ~creds in
   let post_params = [
-    ("AWSAccessKeyId",creds.Creds.aws_access_key_id);
-    ("Timestamp", ses_timestamp ())
+    ("AWSAccessKeyId", [creds.Creds.aws_access_key_id]);
+    ("Timestamp", [ses_timestamp ()])
   ] @ post_params in
   let body = `String (Uri.encoded_of_query post_params) in
   lwt _,s = HC.post ~headers ~body endpoint in
@@ -78,15 +78,13 @@ let make_request ~creds post_params =
 
 let delete_verified_email_address ~creds email =
   lwt _ = make_request ~creds [
-    ("Action", "DeleteVerifiedEmailAddress");
-    ("EmailAddress", email);
+    ("Action", ["DeleteVerifiedEmailAddress"]);
+    ("EmailAddress", [email]);
   ] in
   Lwt.return ()
 
 let get_send_quota ~creds =
-  lwt xml = make_request ~creds [
-    ("Action", "GetSendQuota");
-  ] in
+  lwt xml = make_request ~creds [("Action", ["GetSendQuota"])] in
 
   let t = X.nodes_of_string "GetSendQuotaResponse.GetSendQuotaResult" xml in
   let max_24_hour_send = float_of_string (X.data_of_string "Max24HourSend" t) in
@@ -97,7 +95,7 @@ let get_send_quota ~creds =
 
 let get_send_statistics ~creds =
   lwt xml = make_request ~creds [
-    ("Action", "GetSendStatistics");
+    ("Action", ["GetSendStatistics"]);
   ] in
   let t = X.nodes_of_string "GetSendStatisticsResponse.GetSendStatisticsResult.SendDataPoints" xml in
   let l =
@@ -119,9 +117,7 @@ let get_send_statistics ~creds =
   Lwt.return l
 
 let list_verified_email_addresses ~creds =
-  lwt xml = make_request ~creds [
-    ("Action", "ListVerifiedEmailAddresses");
-  ] in
+  lwt xml = make_request ~creds ["Action", ["ListVerifiedEmailAddresses"]] in
 
   let t = X.nodes_of_string "ListVerifiedEmailAddressesResponse.ListVerifiedEmailAddressesResult.VerifiedEmailAddresses" xml in
   let l =
@@ -139,7 +135,7 @@ let build_member dest dest_type acc =
       fun (acc,nb) email ->
         if email <> "" then begin
           let k = Printf.sprintf "%s.member.%d" dest_type nb in
-          let acc = (k,email)::acc in
+          let acc = (k,[email])::acc in
           acc, nb+1
         end else (acc,nb)
     ) (acc,1) dest
@@ -158,9 +154,9 @@ let send_email ~creds ?reply_to_addresses ?return_path ~destination ~source ~mes
 
   let build_message message acc =
     List.fold_left (
-      fun acc ((k,v) as el) ->
+      fun acc (k,v) ->
         if v = "" then acc
-        else el::acc
+        else (k,[v])::acc
     ) acc [
       "Message.Subject.Data", message.subject.data;
       "Message.Subject.Charset", message.subject.charset;
@@ -172,10 +168,11 @@ let send_email ~creds ?reply_to_addresses ?return_path ~destination ~source ~mes
   in
 
   let params =
-    build_members destination [
-      ("Action", "SendEmail");
-      ("Source", source);
-    ]
+    build_members destination
+      [
+        ("Action", ["SendEmail"]);
+        ("Source", [source]);
+      ]
   in
   let params = build_message message params in
   let params =
@@ -197,8 +194,8 @@ let send_raw_email ~creds ?destinations ?source ~raw_message () =
 
   let params =
     match source with
-    | Some s -> [("Source", s); ("Action", "SendRawEmail")];
-    | None -> [("Action", "SendRawEmail") ];
+    | Some s -> [("Source", [s]); ("Action", ["SendRawEmail"])];
+    | None -> [("Action", ["SendRawEmail"]) ];
   in
 
   let params = build_members destinations params in
@@ -217,8 +214,8 @@ let send_raw_email ~creds ?destinations ?source ~raw_message () =
 
 let verify_email_address ~creds email =
   lwt xml = make_request ~creds [
-    ("Action", "VerifyEmailIdentity");
-    ("EmailAddress", email);
+    ("Action", ["VerifyEmailIdentity"]);
+    ("EmailAddress", [email]);
   ] in
   Lwt.return (X.data_of_string "VerifyEmailIdentityResponse.ResponseMetadata.RequestId" [xml])
 

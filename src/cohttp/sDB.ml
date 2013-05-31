@@ -1,3 +1,3 @@
-module M = SDB_factory.Make (Http_client10)
+module M = SDB_factory.Make (Client)
 
 include M

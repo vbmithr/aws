@@ -2,9 +2,6 @@ module Pcre = Re_pcre
 
 (* Miscellaneous ***********************)
 
-let remove_newline =
-  Pcre.substitute ~rex:(Pcre.regexp "\n") ~subst:(fun (_:string) -> "")
-
 let split_slash s =
   match Pcre.split ~rex:(Pcre.regexp "/") s with
   | [x1 ;x2 ] -> x1,x2
@@ -12,16 +9,12 @@ let split_slash s =
 
 let base64 str =
   (* the encoder is consumed by its use, so we have to recreated *)
-  let b64_encoder = Cryptokit.Base64.encode_multiline () in
-  let encoded = Cryptokit.transform_string b64_encoder str in
-  (* we want to retain the trailing '=' characters, but eliminate the
-     newlines.  Unfortunately, [encode_compact] has neither. *)
-  remove_newline encoded
+  let b64_encoder = Cryptokit.Base64.encode_compact_pad () in
+  Cryptokit.transform_string b64_encoder str
 
 let base64_decoder str =
-  let b64_decoded = Cryptokit.Base64.decode () in
-  let decoded = Cryptokit.transform_string b64_decoded str in
-  decoded
+  let b64_decoder = Cryptokit.Base64.decode () in
+  Cryptokit.transform_string b64_decoder str
 
 let colon_space (k, v) = k ^ ": " ^ v
 
