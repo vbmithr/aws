@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 36d9960f2fe3fab0f95513944ace3685)
+# DO NOT EDIT (digest: 73e49d6f5a6c56d683b1f693944bb1ed)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -39,10 +39,6 @@
 <src/cohttp/*.ml{,i}>: pkg_uri
 # Library ocsigen
 "src/ocsigen/ocsigen.cmxs": use_ocsigen
-<src/ocsigen/ocsigen.{cma,cmxa}>: oasis_library_ocsigen_byte
-<src/ocsigen/*.ml{,i}>: oasis_library_ocsigen_byte
-<src/ocsigen/ocsigen.{cma,cmxa}>: oasis_library_ocsigen_native
-<src/ocsigen/*.ml{,i}>: oasis_library_ocsigen_native
 <src/ocsigen/*.ml{,i}>: use_aws
 <src/ocsigen/*.ml{,i}>: pkg_lwt
 <src/ocsigen/*.ml{,i}>: pkg_lwt.unix
@@ -57,10 +53,6 @@
 <src/ocsigen/*.ml{,i}>: pkg_re.pcre
 <src/ocsigen/*.ml{,i}>: pkg_uri
 # Executable backup
-<tools/backup.{native,byte}>: oasis_executable_backup_byte
-<tools/*.ml{,i}>: oasis_executable_backup_byte
-<tools/backup.{native,byte}>: oasis_executable_backup_native
-<tools/*.ml{,i}>: oasis_executable_backup_native
 <tools/backup.{native,byte}>: use_cohttp
 <tools/backup.{native,byte}>: use_aws
 <tools/backup.{native,byte}>: pkg_lwt
@@ -74,10 +66,6 @@
 <tools/backup.{native,byte}>: pkg_re.pcre
 <tools/backup.{native,byte}>: pkg_uri
 # Executable s3c
-<tools/s3c.{native,byte}>: oasis_executable_s3c_byte
-<tools/*.ml{,i}>: oasis_executable_s3c_byte
-<tools/s3c.{native,byte}>: oasis_executable_s3c_native
-<tools/*.ml{,i}>: oasis_executable_s3c_native
 <tools/s3c.{native,byte}>: use_cohttp
 <tools/s3c.{native,byte}>: use_aws
 <tools/s3c.{native,byte}>: pkg_lwt
@@ -91,10 +79,6 @@
 <tools/s3c.{native,byte}>: pkg_re.pcre
 <tools/s3c.{native,byte}>: pkg_uri
 # Executable ec2sh
-<tools/ec2sh.{native,byte}>: oasis_executable_ec2sh_byte
-<tools/*.ml{,i}>: oasis_executable_ec2sh_byte
-<tools/ec2sh.{native,byte}>: oasis_executable_ec2sh_native
-<tools/*.ml{,i}>: oasis_executable_ec2sh_native
 <tools/ec2sh.{native,byte}>: use_cohttp
 <tools/ec2sh.{native,byte}>: use_aws
 <tools/ec2sh.{native,byte}>: pkg_lwt
@@ -108,10 +92,6 @@
 <tools/ec2sh.{native,byte}>: pkg_re.pcre
 <tools/ec2sh.{native,byte}>: pkg_uri
 # Executable listdomain
-<tools/listdomain.{native,byte}>: oasis_executable_listdomain_byte
-<tools/*.ml{,i}>: oasis_executable_listdomain_byte
-<tools/listdomain.{native,byte}>: oasis_executable_listdomain_native
-<tools/*.ml{,i}>: oasis_executable_listdomain_native
 <tools/listdomain.{native,byte}>: use_cohttp
 <tools/listdomain.{native,byte}>: use_aws
 <tools/listdomain.{native,byte}>: pkg_lwt
@@ -125,10 +105,6 @@
 <tools/listdomain.{native,byte}>: pkg_re.pcre
 <tools/listdomain.{native,byte}>: pkg_uri
 # Executable update
-<tools/update.{native,byte}>: oasis_executable_update_byte
-<tools/*.ml{,i}>: oasis_executable_update_byte
-<tools/update.{native,byte}>: oasis_executable_update_native
-<tools/*.ml{,i}>: oasis_executable_update_native
 <tools/update.{native,byte}>: use_cohttp
 <tools/update.{native,byte}>: use_aws
 <tools/update.{native,byte}>: pkg_lwt
@@ -142,10 +118,6 @@
 <tools/update.{native,byte}>: pkg_re.pcre
 <tools/update.{native,byte}>: pkg_uri
 # Executable deldomain
-<tools/deldomains.{native,byte}>: oasis_executable_deldomain_byte
-<tools/*.ml{,i}>: oasis_executable_deldomain_byte
-<tools/deldomains.{native,byte}>: oasis_executable_deldomain_native
-<tools/*.ml{,i}>: oasis_executable_deldomain_native
 <tools/deldomains.{native,byte}>: use_cohttp
 <tools/deldomains.{native,byte}>: use_aws
 <tools/deldomains.{native,byte}>: pkg_lwt

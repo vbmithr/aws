@@ -45,8 +45,6 @@ Library ocsigen
   Install$:   flag(ocsigen) || flag(all)
   Modules:    EC2, SDB, S3, SQS, FPS, Dynamo, IAM, SES
   InternalModules: Ocsigen_HC
-  ByteOpt: -thread
-  NativeOpt: -thread
   FindlibParent: aws
   BuildDepends: lwt, lwt.unix, lwt.syntax, netstring, pcre, cryptokit, calendar, xmlm, ocsigenserver, aws
 
@@ -55,8 +53,6 @@ Executable backup
   MainIs:       backup.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
-  ByteOpt: -thread
-  NativeOpt: -thread
   BuildDepends: aws.cohttp
   CompiledObject: best
 
@@ -65,8 +61,6 @@ Executable s3c
   MainIs:       s3c.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
-  ByteOpt: -thread
-  NativeOpt: -thread
   BuildDepends: aws.cohttp
   CompiledObject: best
 
@@ -75,8 +69,6 @@ Executable ec2sh
   MainIs:       ec2sh.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
-  ByteOpt: -thread
-  NativeOpt: -thread
   BuildDepends: aws.cohttp
   CompiledObject: best
 
@@ -85,8 +77,6 @@ Executable listdomain
   MainIs:       listdomain.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
-  ByteOpt: -thread
-  NativeOpt: -thread
   BuildDepends: aws.cohttp
   CompiledObject: best
 
@@ -95,8 +85,6 @@ Executable update
   MainIs:       update.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
-  ByteOpt: -thread
-  NativeOpt: -thread
   BuildDepends: aws.cohttp
   CompiledObject: best
 
@@ -105,8 +93,5 @@ Executable deldomain
   MainIs:       deldomains.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
-  ByteOpt: -thread
-  NativeOpt: -thread
-  CompiledObject: best
   BuildDepends: aws.cohttp
   CompiledObject: best
