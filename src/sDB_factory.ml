@@ -288,7 +288,7 @@ struct
        :: ("ConsistentRead", [sprint "%B" consistent])
        :: (match token with
          | None -> []
-         | Some t -> [ "NextToken", t ])) () in
+         | Some t -> [ "NextToken", [t] ])) () in
     try_lwt
       let uri_query_component = Uri.encoded_of_query params in
       lwt header, body = HC.post ~body:(`String uri_query_component) url in

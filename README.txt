@@ -1,8 +1,8 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 1f3c9fa67e8302b3d505a8fdb4871cbd) *)
+(* DO NOT EDIT (digest: fdf3c7e98cd06ab6f15fc5f73de215af) *)
 This is the README file for the aws distribution.
 
-aws client lib for amazon web services
+Amazon Web Services client library
 
 See the files INSTALL.txt for building and installation instructions. 
 

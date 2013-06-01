@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 64338a5f08bdd577ca9dbf4c69453366) *)
+(* DO NOT EDIT (digest: 325e57c1cb829e68f953fe6da481b38b) *)
 This is the INSTALL file for the aws distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -11,21 +11,15 @@ Dependencies
 In order to compile this package, you will need:
 * ocaml
 * findlib
-* lwt for library aws, library ocsigen, executable backup, executable ec2sh,
-  executable listdomain, executable s3c, executable update
-* cryptokit for library aws, library ocsigen, executable backup,
-  executable ec2sh, executable listdomain, executable s3c, executable update
-* calendar for library aws, library ocsigen, executable backup,
-  executable ec2sh, executable listdomain, executable s3c, executable update
-* xmlm for library aws, library ocsigen, executable backup, executable ec2sh,
-  executable listdomain, executable s3c, executable update
+* lwt for library aws, library ocsigen
+* cryptokit for library aws, library ocsigen
+* calendar for library aws, library ocsigen
+* xmlm for library aws, library ocsigen
 * yojson for library aws
 * re for library aws
 * uri for library aws
-* cohttp for library cohttp, executable backup, executable ec2sh,
-  executable listdomain, executable s3c, executable update
-* netstring for library ocsigen, executable backup, executable ec2sh,
-  executable listdomain, executable s3c, executable update
+* cohttp for library cohttp
+* netstring for library ocsigen
 * pcre for library ocsigen
 * ocsigenserver for library ocsigen
 

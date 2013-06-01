@@ -1,16 +1,12 @@
-module Make = functor (HC : Aws_sigs.HTTP_CLIENT) ->
-  struct
-
-
 module C = CalendarLib.Calendar
 module P = CalendarLib.Printer.CalendarPrinter
 module X = Xml
-
-
-open Lwt
-open Creds
-
 module Util = Aws_util
+
+open Creds
+open Lwt
+
+module Make = functor (HC : Aws_sigs.HTTP_CLIENT) -> struct
 
 exception Error of string
 

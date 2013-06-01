@@ -36,7 +36,7 @@ let main () =
     ) (1, StringMap.empty) domains in
     printf "which domain(s) to delete? (space-separated index)\n>> %!" >>
     lwt line = read_line stdin in
-    let domain_indexes_to_delete = Pcre.split line in
+    let domain_indexes_to_delete = Pcre.split ~rex:(Pcre.regexp "[ \t]+") line in
     printf "go ahead and delete these domains:\n%!" >>
       lwt domains_to_delete = Lwt_list.fold_left_s (
         fun domains_to_delete domain_index ->

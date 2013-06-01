@@ -1,8 +1,8 @@
 OASISFormat: 0.3
 Name:        aws
 Version:     0.0.2
-Synopsis:    aws client lib for amazon web services
-Authors:     Barko, William Le Ferrand, Hhugo, Msimon
+Synopsis:    Amazon Web Services client library
+Authors:     Barko, William Le Ferrand, Hhugo, Msimon, Vincent Bernardoff <vb@luminar.eu.org>
 License:     MIT
 Plugins:     META (0.3), DevFiles (0.3), StdFiles (0.3)
 BuildTools:  ocamlbuild
@@ -13,7 +13,7 @@ Flag all
 
 Flag tools
   Description: tools
-  Default: false
+  Default: true
 
 Flag cohttp
   Description: cohttp
@@ -37,7 +37,7 @@ Library cohttp
   Install$:   flag(cohttp) || flag(all)
   Modules:    EC2, SDB, S3, SQS, FPS, Dynamo, IAM, SES
   FindlibParent: aws
-  BuildDepends: aws, cohttp
+  BuildDepends: aws, cohttp.lwt
 
 Library ocsigen
   Path:       src/ocsigen
@@ -57,7 +57,8 @@ Executable backup
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: aws.cohttp
+  CompiledObject: best
 
 Executable s3c
   Path:         tools
@@ -66,7 +67,8 @@ Executable s3c
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: aws.cohttp
+  CompiledObject: best
 
 Executable ec2sh
   Path:         tools
@@ -75,7 +77,8 @@ Executable ec2sh
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: aws.cohttp
+  CompiledObject: best
 
 Executable listdomain
   Path:         tools
@@ -84,7 +87,8 @@ Executable listdomain
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: aws.cohttp
+  CompiledObject: best
 
 Executable update
   Path:         tools
@@ -93,7 +97,8 @@ Executable update
   Install$:   flag(cohttp) && flag(tools)
   ByteOpt: -thread
   NativeOpt: -thread
-  BuildDepends: lwt, lwt.syntax, netstring, cryptokit, calendar, xmlm, cohttp, str, lwt.unix, unix
+  BuildDepends: aws.cohttp
+  CompiledObject: best
 
 Executable deldomain
   Path:         tools
@@ -104,3 +109,4 @@ Executable deldomain
   NativeOpt: -thread
   CompiledObject: best
   BuildDepends: aws.cohttp
+  CompiledObject: best

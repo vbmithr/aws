@@ -1,8 +1,9 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: c75428bea93cb38b098c81f108b23195) *)
+(* DO NOT EDIT (digest: 96a4c123c4f44c93a92c31703ba901dd) *)
 Authors of aws
 Barko
 William Le Ferrand
 Hhugo
 Msimon
+Vincent Bernardoff <vb@luminar.eu.org>
 (* OASIS_STOP *)
