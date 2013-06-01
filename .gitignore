@@ -1,12 +1,3 @@
-ocsidb
-*byte
-*native
 _build
 setup.log
 setup.data
-setup.ml
-*~
-*#*
-*bug*
-*conf
-*keys*
