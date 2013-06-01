@@ -8,19 +8,23 @@ Plugins:     META (0.3), DevFiles (0.3), StdFiles (0.3)
 BuildTools:  ocamlbuild
 
 Flag all
-  Description: all
+  Description: Build all backends
   Default: false
 
 Flag tools
-  Description: tools
+  Description: Build tools
   Default: true
 
+Flag test
+  Description: Build tests
+  Default: false
+
 Flag cohttp
-  Description: cohttp
+  Description: Build the cohttp backend
   Default: true
 
 Flag ocsigen
-  Description: ocsigen
+  Description: Build the ocsigen backend
   Default: false
 
 Library aws
@@ -93,5 +97,21 @@ Executable deldomain
   MainIs:       deldomains.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
+  BuildDepends: aws.cohttp
+  CompiledObject: best
+
+Executable sdbtest
+  Path:         test
+  MainIs:       sdbtest.ml
+  Build$:       flag(cohttp) && flag(test)
+  Install$:     flag(cohttp) && flag(test)
+  BuildDepends: aws.cohttp
+  CompiledObject: best
+
+Executable sqstest
+  Path:         test
+  MainIs:       sqstest.ml
+  Build$:       flag(cohttp) && flag(test)
+  Install$:     flag(cohttp) && flag(test)
   BuildDepends: aws.cohttp
   CompiledObject: best

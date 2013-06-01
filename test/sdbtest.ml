@@ -9,7 +9,7 @@ let list_domains () =
   Lwt_main.run 
     (SDB.list_domains creds ()
      >>= function 
-       | `Ok l -> List.iter print_endline l ; return ()
+       | `Ok (l,_) -> List.iter print_endline l ; return ()
        | `Error (code, msg) -> Printf.printf "Panic: %s\n" msg; return ()) 
 
 let create_domain name = 
@@ -28,9 +28,10 @@ let delete_domain name =
 
 let get_attributes domain item = 
    Lwt_main.run 
-     (SDB.get_attributes ~encoded:false creds domain item
+     (SDB.get_attributes ~encoded:false creds ~domain ~item ()
       >>= function 
-        | `Ok l -> List.iter (fun (n, v) -> Printf.printf "%s -> %s\n" n v) l; return ()
+        | `Ok l -> List.iter (fun (n, v) -> 
+          match v with None -> () | Some v -> Printf.printf "%s -> %s\n" n v) l; return ()
        | `Error (code, msg) -> Printf.printf "Panic: %s\n" msg; return ())
 
 let rec select token expr = 
