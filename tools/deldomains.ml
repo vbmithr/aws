@@ -8,7 +8,7 @@ module StringMap = Map.Make(String)
 
 let list_domains creds =
   let rec loop ?token accu =
-    SDB.list_domains creds ?token () >>= function
+    SDB.list_domains ?token ~creds () >>= function
       | `Error msg -> return (`Error msg)
       | `Ok (domains, next_opt) -> 
         let accu' = domains :: accu in

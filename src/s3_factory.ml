@@ -398,11 +398,11 @@ let get_object ?byte_range creds_opt region ~bucket ~objekt ~path =
         (* error message possibly stored in body, so read it
            back from the file in which it was just stored: *)
         lwt () = close_no_err () in
-        lwt body = Util.file_contents path in
+        let body = Util.string_of_path path in
         permanent_redirect_of_string body
       | HC.Http_error (_, _,_) ->
         lwt () = close_no_err () in
-        lwt body = Util.file_contents path in
+        let body = Util.string_of_path path in
         error_msg body >>= function
           | `Error "AccessDenied" -> return `AccessDenied
           | `Error _ as err -> return err

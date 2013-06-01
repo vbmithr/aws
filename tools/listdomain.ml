@@ -3,8 +3,8 @@ open Lwt
 let display fmt = Printf.ksprintf print_endline fmt
 
 
-let rec list_domain ?(token=None) creds domain () = 
-    SDB.select ~token creds ("select * from " ^ domain)
+let rec list_domain ?token creds domain () = 
+    SDB.select ?token ~creds ("select * from " ^ domain)
     >>= function 
       | `Ok (elements, token) -> 
         (
@@ -18,7 +18,7 @@ let rec list_domain ?(token=None) creds domain () =
             ) elements ;
           match token with 
               None -> display "> loading domain %s done" domain ; return () 
-            | Some _ as token -> list_domain ~token creds domain ())
+            | Some _ as token -> list_domain ?token creds domain ())
       | `Error _ -> display "> error" ; return ()  
 
 let delete_domain creds domain = 

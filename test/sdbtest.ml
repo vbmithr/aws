@@ -21,7 +21,7 @@ let delete_domain name =
   | `Error (code, msg) -> Lwt_io.printf "Panic: %s\n" msg
 
 let get_attributes domain item =
-  SDB.get_attributes ~encoded:false creds ~domain ~item () >>= function
+  SDB.get_attributes ~encoded:false ~creds ~domain ~item () >>= function
   | `Ok l -> Lwt_list.iter_s (fun (n, v) ->
     match v with
       | None -> Lwt.return ()
@@ -29,22 +29,32 @@ let get_attributes domain item =
   | `Error (code, msg) -> Lwt_io.printf "Panic: %s\n" msg
 
 let rec select token expr =
-  SDB.select ~encoded:false ~token creds expr >>= function
+  SDB.select ?token ~encoded:false ~creds expr >>= function
   | `Ok (l, nxt) ->
     List.iter (fun (name, attrs) ->
       print_endline name;
-      List.iter (fun (name, value) -> Printf.printf "   %s -> %s\n" name (match value with Some s -> s | None -> "none")) attrs) l;       
+      List.iter (fun (name, value) -> Printf.printf "   %s -> %s\n" name
+        (match value with Some s -> s | None -> "none")) attrs) l;
     (match nxt with
         None -> Lwt_io.printf "no token\n"
       | Some _ -> select nxt expr)
   | `Error (code, msg) -> Lwt_io.printf "Panic: %s\n" msg
 
 
-let _ =
-  list_domains ()
-  (* let domain = Sys.argv.(1) in  *)
-  (* delete_domain domain ;  *)
-  (* create_domain domain *)
+let _ = Lwt_main.run
+  (
+    let () = Printf.printf "Listing domains...\n%!" in
+    lwt () = list_domains () in
+    let domain = Sys.argv.(1) in
+    lwt () = create_domain domain in
+    let () = Printf.printf "Created domain %s\n" Sys.argv.(1) in
+    let () = Printf.printf "Now listing domain again...\n" in
+    lwt () = list_domains () in
+    let () = Printf.printf "Now deleting %s\n" Sys.argv.(1) in
+    lwt () = delete_domain domain in
+    let () = Printf.printf "Printing domain again!\n" in
+    list_domains ()
+  )
 
 (* let _ =  *)
 (*   Lwt_main.run  *)

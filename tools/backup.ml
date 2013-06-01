@@ -9,8 +9,8 @@ let display fmt = Printf.ksprintf print_endline fmt
 
 (* backup logic *****************************************************************************************)
 
-let rec read_and_store ?(token=None) creds oc sdb_domain () = 
-    SDB.select ~token creds ("select * from " ^ sdb_domain)
+let rec read_and_store ?token creds oc sdb_domain () = 
+    SDB.select ?token ~creds ("select * from " ^ sdb_domain)
       >>= function 
         | `Ok (elements, token) -> 
           (display "> iterating over the domain"; 
@@ -25,10 +25,10 @@ let rec read_and_store ?(token=None) creds oc sdb_domain () =
              elements ;
             match token with 
                 None -> display "> loading domain %s done" sdb_domain ; return () 
-              | Some _ as token -> read_and_store ~token creds oc sdb_domain ())
+              | Some _ as token -> read_and_store ?token creds oc sdb_domain ())
         | `Error (s1, s2) -> 
           display "> error %s %s while selecting over domain %s, waiting for 5 secs and retrying" s1 s2 sdb_domain ; 
-          Lwt_unix.sleep 5.0 >>= read_and_store ~token creds oc sdb_domain
+          Lwt_unix.sleep 5.0 >>= read_and_store ?token creds oc sdb_domain
 
 let backup () = 
   let sdb_domain = Sys.argv.(1) in

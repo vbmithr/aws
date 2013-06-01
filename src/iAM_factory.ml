@@ -1,13 +1,11 @@
-module Make = functor (HC : Aws_sigs.HTTP_CLIENT) ->
-struct
+module C = CalendarLib.Calendar
+module P = CalendarLib.Printer.CalendarPrinter
+module Util = Aws_util
 
 open Lwt
 
-module Pcre = Re_pcre
-module Util = Aws_util
-
-module C = CalendarLib.Calendar
-module P = CalendarLib.Printer.CalendarPrinter
+module Make = functor (HC : Aws_sigs.HTTP_CLIENT) ->
+struct
 
 exception Service_down
 

@@ -1,11 +1,8 @@
-module Pcre = Re_pcre
-
 (* Miscellaneous ***********************)
 
-let split_slash s =
-  match Pcre.split ~rex:(Pcre.regexp "/") s with
-  | [x1 ;x2 ] -> x1,x2
-  | _ -> assert false
+let finally_ f c =
+  try let ret = f () in c (); ret
+  with exn -> c (); raise exn
 
 let base64 str =
   (* the encoder is consumed by its use, so we have to recreated *)
@@ -88,7 +85,6 @@ let minutes_from_now minutes =
 let now_as_string () =
   amz_date_string_of_unixfloat (Unix.gettimeofday ())
 
-
 let list_map_i f list =
   let rec loop f j accu = function
     | [] -> List.rev accu
@@ -97,25 +93,19 @@ let list_map_i f list =
       loop f (j+1) (m::accu) t
   in loop f 0 [] list
 
-let read_contents inchan =
-  let buf = Buffer.create 1024 in
-  let rec loop () =
-    lwt s = Lwt_io.read ~count:1024 inchan in
-  if s = ""
-  then Lwt.return (Buffer.contents buf)
-  else (
-    Buffer.add_string buf s;
-    loop ()
-  )
-in
-loop ()
+(* From OCaml source tree: utils/misc.ml *)
+let string_of_file ic =
+  let b = Buffer.create 0x10000 in
+  let buff = String.create 0x1000 in
+  let rec copy () =
+    let n = input ic buff 0 0x1000 in
+    if n = 0 then Buffer.contents b else
+      (Buffer.add_substring b buff 0 n; copy())
+  in copy()
 
-let file_contents path =
-  let flags = [Unix.O_RDONLY] in
-  lwt inchan = Lwt_io.open_file ~flags ~mode:Lwt_io.input path in
-  lwt contents = read_contents inchan in
-  lwt () = Lwt_io.close inchan in
-  Lwt.return contents
+let string_of_path path =
+  let ic = open_in path in
+  finally_ (fun () -> string_of_file ic) (fun () -> close_in ic)
 
 type http_method = [ `GET | `PUT | `HEAD | `DELETE | `POST ]
 
