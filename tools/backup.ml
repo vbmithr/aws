@@ -9,26 +9,26 @@ let display fmt = Printf.ksprintf print_endline fmt
 
 (* backup logic *****************************************************************************************)
 
-let rec read_and_store ?token creds oc sdb_domain () = 
+let rec read_and_store ?token creds oc sdb_domain () =
+  try_lwt
     SDB.select ?token ~creds ("select * from " ^ sdb_domain)
-      >>= function 
-        | `Ok (elements, token) -> 
-          (display "> iterating over the domain"; 
-           List.iter
-             (fun (name, attrs) -> 
-               Printf.fprintf oc "--name %s" name ; 
-               List.iter 
-                 (fun (key, value_option) ->
-                   match value_option with 
-                       Some value -> Printf.fprintf oc "%s %s" key value
-                     | None -> Printf.fprintf oc "%s" key) attrs)
-             elements ;
-            match token with 
-                None -> display "> loading domain %s done" sdb_domain ; return () 
-              | Some _ as token -> read_and_store ?token creds oc sdb_domain ())
-        | `Error (s1, s2) -> 
-          display "> error %s %s while selecting over domain %s, waiting for 5 secs and retrying" s1 s2 sdb_domain ; 
-          Lwt_unix.sleep 5.0 >>= read_and_store ?token creds oc sdb_domain
+      >>= function (elements, token) -> 
+        (display "> iterating over the domain"; 
+         List.iter
+           (fun (name, attrs) -> 
+             Printf.fprintf oc "--name %s" name ; 
+             List.iter 
+               (fun (key, value_option) ->
+                 match value_option with 
+                     Some value -> Printf.fprintf oc "%s %s" key value
+                   | None -> Printf.fprintf oc "%s" key) attrs)
+           elements ;
+         match token with 
+             None -> display "> loading domain %s done" sdb_domain ; return () 
+           | Some _ as token -> read_and_store ?token creds oc sdb_domain ())
+  with SDB.Error (s1, s2) ->
+    display "> error %d %s while selecting over domain %s, waiting for 5 secs and retrying" s1 s2 sdb_domain ; 
+    Lwt_unix.sleep 5.0 >>= read_and_store ?token creds oc sdb_domain
 
 let backup () = 
   let sdb_domain = Sys.argv.(1) in

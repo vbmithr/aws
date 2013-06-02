@@ -50,7 +50,7 @@ Library ocsigen
   Modules:    EC2, SDB, S3, SQS, FPS, Dynamo, IAM, SES
   InternalModules: Ocsigen_HC
   FindlibParent: aws
-  BuildDepends: lwt, lwt.unix, lwt.syntax, netstring, pcre, cryptokit, calendar, xmlm, ocsigenserver, aws
+  BuildDepends: aws, ocsigenserver
 
 Executable backup
   Path:         tools
@@ -79,22 +79,6 @@ Executable ec2sh
 Executable listdomain
   Path:         tools
   MainIs:       listdomain.ml
-  Build$:     flag(cohttp) && flag(tools)
-  Install$:   flag(cohttp) && flag(tools)
-  BuildDepends: aws.cohttp
-  CompiledObject: best
-
-Executable update
-  Path:         tools
-  MainIs:       update.ml
-  Build$:     flag(cohttp) && flag(tools)
-  Install$:   flag(cohttp) && flag(tools)
-  BuildDepends: aws.cohttp
-  CompiledObject: best
-
-Executable deldomain
-  Path:         tools
-  MainIs:       deldomains.ml
   Build$:     flag(cohttp) && flag(tools)
   Install$:   flag(cohttp) && flag(tools)
   BuildDepends: aws.cohttp

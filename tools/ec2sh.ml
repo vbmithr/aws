@@ -2,9 +2,10 @@
 open Lwt
 open Printf
 
-let run = Lwt_unix.run
+let run = Lwt_main.run
 
-let creds = Aws_util.creds_of_env ()
+let creds = Creds.({ aws_access_key_id     = Keys.k;
+                     aws_secret_access_key = Keys.c })
 
 let string_of_opt = function
   | None -> "-"

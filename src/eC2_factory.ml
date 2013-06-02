@@ -6,55 +6,58 @@ module Util = Aws_util
 open Creds
 open Lwt
 
-module Make = functor (HC : Aws_sigs.HTTP_CLIENT) -> struct
-
-exception Error of string
-
 let sprint = Printf.sprintf
 let service = "ec2"
 
+module XmlHelpers = struct
+  exception Error of string
+
 (* convenience functions for navigating xml nodes *)
-let find_children e_list k =
-  try
-    let el = List.find (function
-      | X.E( name, _, children ) -> name = k
-      | X.P _ -> false
-    ) e_list in
-    let children =
-      match el with
-        | X.E( name, _, children ) -> children
-        | X.P _ -> assert false
-    in
-    Some children
-  with Not_found ->
-    None
+  let find_children e_list k =
+    try
+      let el = List.find (function
+        | X.E( name, _, children ) -> name = k
+        | X.P _ -> false
+      ) e_list in
+      let children =
+        match el with
+          | X.E( name, _, children ) -> children
+          | X.P _ -> assert false
+      in
+      Some children
+    with Not_found ->
+      None
 
-let find_children_else_error e_list k =
-  match find_children e_list k with
-    | None -> raise (Error k)
-    | Some children -> children
+  let find_children_else_error e_list k =
+    match find_children e_list k with
+      | None -> raise (Error k)
+      | Some children -> children
 
-let find_p_child e_list k =
-  match find_children e_list k with
-    | None -> None
-    | Some [X.P p_child] -> Some p_child
-    | _ -> None
+  let find_p_child e_list k =
+    match find_children e_list k with
+      | None -> None
+      | Some [X.P p_child] -> Some p_child
+      | _ -> None
 
-let find_e_child e_list k =
-  match find_children e_list k with
-    | None -> None
-    | Some [e] -> Some e
-    | _ -> None
+  let find_e_child e_list k =
+    match find_children e_list k with
+      | None -> None
+      | Some [e] -> Some e
+      | _ -> None
 
-let find_p_child_else_error e_list k =
-  match find_p_child e_list k with
-    | None -> raise (Error k)
-    | Some p -> p
+  let find_p_child_else_error e_list k =
+    match find_p_child e_list k with
+      | None -> raise (Error k)
+      | Some p -> p
 
-let find_e_child_else_error e_list k =
-  match find_e_child e_list k with
-    | None -> raise (Error k)
-    | Some e -> e
+  let find_e_child_else_error e_list k =
+    match find_e_child e_list k with
+      | None -> raise (Error k)
+      | Some e -> e
+end
+open XmlHelpers
+
+module Make = functor (HC : Aws_sigs.HTTP_CLIENT) -> struct
 
 (* describe regions *)
 let item_of_xml = function
@@ -77,7 +80,8 @@ let describe_regions_response_of_xml = function
 let describe_regions ?expires_minutes creds =
   let url, params = Util.signed_request ?expires_minutes ~service ~creds
     ~params:["Action", ["DescribeRegions"] ] () in
-  lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
+  lwt header, body = HC.post
+    ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
   let xml = X.xml_of_string body in
   return (describe_regions_response_of_xml xml)
 

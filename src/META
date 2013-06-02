@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: de5b220992ee409d37f7846bf0ecfa60)
+# DO NOT EDIT (digest: 24bc61fd62d86940f716b8aacc19666a)
 version = "0.0.2"
 description = "Amazon Web Services client library"
 requires =
@@ -12,8 +12,7 @@ exists_if = "aws.cma"
 package "ocsigen" (
  version = "0.0.2"
  description = "Amazon Web Services client library"
- requires =
- "lwt lwt.unix lwt.syntax netstring pcre cryptokit calendar xmlm ocsigenserver aws"
+ requires = "aws ocsigenserver"
  archive(byte) = "ocsigen.cma"
  archive(byte, plugin) = "ocsigen.cma"
  archive(native) = "ocsigen.cmxa"
