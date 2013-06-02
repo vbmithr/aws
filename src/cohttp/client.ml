@@ -30,14 +30,19 @@ let post_put f ?headers ?body uri_string =
         | `String s -> Lwt.return (CB.body_of_string s))
     | None -> Lwt.return None
   in
-
   let headers = Opt.map (C.Header.of_list) headers in
-  let pct_uri_string = Uri.pct_encode uri_string in
-  let uri = Uri.of_string pct_uri_string in
+  let headers = match headers with
+    | Some h -> Some (C.Header.add h "Content-Type" "application/x-www-form-urlencoded; charset=utf8")
+    | None -> Some (C.Header.init_with "Content-Type" "application/x-www-form-urlencoded; charset=utf8")
+  in
+  lwt body_string = (CB.string_of_body body) in
+  let () = Printf.printf "DEBUG: post_put: sent body =\n%s\n%!" body_string in
+  let uri = Uri.of_string uri_string in
   lwt resp = f ?body ?headers uri in
   let resp, body = Opt.unopt resp in
   let resp_hdrs = CUR.headers resp in
   lwt body_string = CB.string_of_body body in
+  let () = Printf.printf "DEBUG: post_put: received body = \n%s\n%!" body_string in
   Lwt.return (C.Header.to_list resp_hdrs, body_string)
 
 let post = post_put (CUC.post ~chunked:false)
@@ -45,8 +50,7 @@ let put  = post_put (CUC.put ~chunked:false)
 
 let get_head_delete f ?headers uri_string =
   let headers = Opt.map (C.Header.of_list) headers in
-  let pct_uri_string = Uri.pct_encode uri_string in
-  let uri = Uri.of_string pct_uri_string in
+  let uri = Uri.of_string uri_string in
   lwt resp = f ?headers uri in
   let resp, body = Opt.unopt resp in
   let resp_hdrs = CUR.headers resp in

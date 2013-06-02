@@ -158,16 +158,16 @@ let signed_request
 
   let http_host = service ^ (if region <> "" then "." ^ region else "") ^ ".amazonaws.com" in
   let params =
-    ("Version", ["2009-04-15"] ) ::
-      ("SignatureVersion", ["2"]) ::
-      ("SignatureMethod", ["HmacSHA1"]) ::
-      ("AWSAccessKeyId", [creds.aws_access_key_id]) ::
-      params
+       ("Version", ["2009-04-15"])
+    :: ("SignatureVersion", ["2"])
+    :: ("SignatureMethod", ["HmacSHA256"])
+    :: ("AWSAccessKeyId", [creds.aws_access_key_id])
+    :: params
   in
   let params =
     match expires_minutes with
       | Some i -> ("Expires", [minutes_from_now i]) :: params
-      | None -> ("Timestamp", [now_as_string ()]) :: params
+      | None   -> ("Timestamp", [now_as_string ()]) :: params
   in
   (* sorting the params assoc list *)
   let params = sort_assoc_list params in
@@ -175,19 +175,17 @@ let signed_request
   let signature =
     let uri_query_component = Uri.encoded_of_query params in
     let string_to_sign = String.concat "\n" [
-      string_of_http_method http_method ;
-      String.lowercase http_host ;
-      http_uri ;
+      string_of_http_method http_method;
+      String.lowercase http_host;
+      http_uri;
       uri_query_component
-    ]
-    in
-
-    let hmac_sha1_encoder = Cryptokit.MAC.hmac_sha1 creds.aws_secret_access_key in
-    let signed_string = Cryptokit.hash_string hmac_sha1_encoder string_to_sign in
+    ] in
+    let hmac_sha256_encoder = Cryptokit.MAC.hmac_sha256 creds.aws_secret_access_key in
+    let signed_string = Cryptokit.hash_string hmac_sha256_encoder string_to_sign in
     base64 signed_string
   in
   let params = ("Signature", [signature]) :: params in
-  (http_host ^ http_uri), params
+  ("http://" ^ http_host ^ http_uri), params
 
 
 (* Copyright (c) 2011, barko 00336ea19fcb53de187740c490f764f4 All
