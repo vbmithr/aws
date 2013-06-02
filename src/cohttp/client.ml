@@ -23,27 +23,34 @@ let post_put f ?headers ?body uri_string =
     | Some req_body ->
       (match req_body with
         | `InChannel (len, ic) ->
-          Lwt_io.read ~count:len ic >>= fun body ->
-          if String.length body = len
-          then Lwt.return (CB.body_of_string body)
-          else Lwt.return None
+          let body = String.create len in
+          Lwt_io.read_into_exactly ic body 0 len
+          >> Lwt.return (CB.body_of_string body)
         | `String s -> Lwt.return (CB.body_of_string s))
     | None -> Lwt.return None
   in
   let headers = Opt.map (C.Header.of_list) headers in
   let headers = match headers with
-    | Some h -> Some (C.Header.add h "Content-Type" "application/x-www-form-urlencoded; charset=utf8")
-    | None -> Some (C.Header.init_with "Content-Type" "application/x-www-form-urlencoded; charset=utf8")
+    | Some h -> Some (C.Header.add h
+                        "Content-Type" "application/x-www-form-urlencoded; charset=utf8")
+    | None -> Some (C.Header.init_with
+                      "Content-Type" "application/x-www-form-urlencoded; charset=utf8")
   in
   lwt body_string = (CB.string_of_body body) in
-  let () = Printf.printf "DEBUG: post_put: sent body =\n%s\n%!" body_string in
   let uri = Uri.of_string uri_string in
   lwt resp = f ?body ?headers uri in
-  let resp, body = Opt.unopt resp in
-  let resp_hdrs = CUR.headers resp in
-  lwt body_string = CB.string_of_body body in
-  let () = Printf.printf "DEBUG: post_put: received body = \n%s\n%!" body_string in
-  Lwt.return (C.Header.to_list resp_hdrs, body_string)
+  lwt resp, body = try_lwt Lwt.return (Opt.unopt resp) with
+      Not_found -> raise_lwt (Failure "No body returned") in
+  let status_code = C.Response.status resp in
+  let status_code_int = C.Code.code_of_status status_code in
+  if C.Code.is_error status_code_int then
+    raise_lwt Http_error (status_code_int,
+                          C.Header.to_list (C.Response.headers resp),
+                          C.Code.string_of_status status_code)
+  else
+    let resp_hdrs = CUR.headers resp in
+    lwt body_string = CB.string_of_body body in
+    Lwt.return (C.Header.to_list resp_hdrs, body_string)
 
 let post = post_put (CUC.post ~chunked:false)
 let put  = post_put (CUC.put ~chunked:false)
@@ -52,10 +59,18 @@ let get_head_delete f ?headers uri_string =
   let headers = Opt.map (C.Header.of_list) headers in
   let uri = Uri.of_string uri_string in
   lwt resp = f ?headers uri in
-  let resp, body = Opt.unopt resp in
-  let resp_hdrs = CUR.headers resp in
-  lwt body_string = CB.string_of_body body in
-  Lwt.return (C.Header.to_list resp_hdrs, body_string)
+  lwt resp, body = try_lwt Lwt.return (Opt.unopt resp) with
+      Not_found -> raise_lwt (Failure "No body returned") in
+  let status_code = C.Response.status resp in
+  let status_code_int = C.Code.code_of_status status_code in
+  if C.Code.is_error status_code_int then
+    raise_lwt Http_error (status_code_int,
+                          C.Header.to_list (C.Response.headers resp),
+                          C.Code.string_of_status status_code)
+  else
+    let resp_hdrs = CUR.headers resp in
+    lwt body_string = CB.string_of_body body in
+    Lwt.return (C.Header.to_list resp_hdrs, body_string)
 
 let get    = get_head_delete CUC.get
 let head   = get_head_delete CUC.head
