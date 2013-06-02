@@ -172,8 +172,9 @@ let signed_request
   (* sorting the params assoc list *)
   let params = sort_assoc_list params in
 
+  (* http://docs.aws.amazon.com/AmazonSimpleDB/latest/DeveloperGuide/HMACAuth.html *)
   let signature =
-    let uri_query_component = Uri.encoded_of_query params in
+    let uri_query_component = Uri.encoded_of_query params ~value_component:`RFC3986 in
     let string_to_sign = String.concat "\n" [
       string_of_http_method http_method;
       String.lowercase http_host;

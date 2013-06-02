@@ -125,7 +125,7 @@ module type S = sig
 
   val delete_domain : creds:Creds.t -> domain -> [> `Error of string * string | `Ok ] Lwt.t
 
-  val put_attributes : ?replace:bool -> ?encode:bool -> creds:Creds.t -> 
+  val put_attributes : ?replace:bool -> ?encode:bool -> creds:Creds.t ->
     domain:domain -> item:item -> attrs:item_value -> unit
     -> [> `Error of string * string | `Ok ] Lwt.t
 
@@ -160,7 +160,8 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
         | Some t -> [ "NextToken", [t] ]) () in
 
     try_lwt
-       lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
+       lwt header, body = HC.post
+         ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
        let xml = X.xml_of_string body in
        return (`Ok (list_domains_response_of_xml xml))
     with HC.Http_error (code, _, body) ->  return (error_msg code body)
@@ -173,7 +174,8 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
     ] () in
 
     try_lwt
-      lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
+      lwt header, body = HC.post
+        ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
       return `Ok
     with HC.Http_error (code, _, body) ->
       return (error_msg code body)
@@ -186,7 +188,8 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
     ] () in
 
     try_lwt
-       lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
+       lwt header, body = HC.post
+         ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
        return `Ok
     with HC.Http_error (code, _, body) ->
       return (error_msg code body)
@@ -217,7 +220,8 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
        :: ("ItemName", [b64enc_if encode item])
        :: attrs') () in
     try_lwt
-      lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
+      lwt header, body = HC.post
+        ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
 
       return `Ok
     with HC.Http_error (code, _, body) -> return (error_msg code body)
@@ -251,7 +255,8 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
        :: ("DomainName", [domain])
        :: attrs') () in
     try_lwt
-      lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in return `Ok
+      lwt header, body = HC.post
+        ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in return `Ok
     with HC.Http_error (code, _, body) ->  return (error_msg code body)
 
   (* get attributes *)
@@ -289,7 +294,8 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
        :: ("ItemName", [b64enc_if encode item])
        :: attrs') () in
     try_lwt
-       lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
+       lwt header, body = HC.post
+         ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
        return `Ok
     with HC.Http_error (code, _, body) ->
       return (error_msg code body)
@@ -310,8 +316,9 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
          | None -> []
          | Some t -> [ "NextToken", [t] ])) () in
     try_lwt
-      let uri_query_component = Uri.encoded_of_query params in
-      lwt header, body = HC.post ~body:(`String uri_query_component) url in
+      let uri_query_component = Uri.encoded_of_query ~value_component:`RFC3986 params in
+      lwt header, body = HC.post
+        ~body:(`String uri_query_component) url in
       let xml = X.xml_of_string body in
       return (`Ok (select_of_xml encoded xml))
     with HC.Http_error (code, _, body) -> return (error_msg code body)
