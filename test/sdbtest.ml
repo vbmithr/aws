@@ -5,7 +5,7 @@ let creds = Creds.({ aws_access_key_id     = Keys.k;
                      aws_secret_access_key = Keys.c })
 
 let list_domains () =
-  lwt l, _ = SDB.list_domains ~creds () in
+  lwt l = SDB.list_domains ~creds () in
   Lwt_io.printf "Domains: [ %s ]\n%!" (String.concat " " l)
 
 let create_domain name = SDB.create_domain ~creds name

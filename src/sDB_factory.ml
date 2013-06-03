@@ -17,33 +17,62 @@ let sprint = Printf.sprintf
 let service = "sdb"
 
 
+(* SDB data model *)
+
+type domain = string
+type attr = string
+type attr_value = string option
+type item = string
+type item_value = (attr * attr_value) list
+
+module type S = sig
+  exception Error of int * string
+
+  val list_domains : creds:Creds.t -> unit -> domain list Lwt.t
+
+  val create_domain : creds:Creds.t -> domain -> unit Lwt.t
+
+  val delete_domain : creds:Creds.t -> domain -> unit Lwt.t
+
+  val put_attributes : ?replace:bool -> ?encode:bool -> creds:Creds.t ->
+    domain:domain -> item:item -> attrs:item_value -> unit -> unit Lwt.t
+
+  val batch_put_attributes : ?replace:bool -> ?encode:bool -> creds:Creds.t ->
+    domain:domain -> (item * item_value) list -> unit Lwt.t
+
+  val get_attributes : ?encoded:bool -> ?attribute:attr -> creds:Creds.t
+    -> domain:domain -> item:item -> unit -> item_value Lwt.t
+
+  val delete_attributes : ?encode:bool -> creds:Creds.t -> domain:domain -> item:item
+    -> attrs:item_value -> unit Lwt.t
+
+  val select : ?token:string -> ?consistent:bool -> ?encoded:bool -> creds:Creds.t -> string
+    -> ((item * item_value) list * string option) Lwt.t
+
+  val select_where_attribute_equals : ?token:string -> ?consistent:bool -> ?encoded:bool
+    -> creds:Creds.t -> domain:domain -> attr:attr -> value:string -> unit
+    -> ((item * item_value) list * string option) Lwt.t
+end
+
+
 (* XML readers *)
 
-let domain_or_next_of_xml = function
-  | X.E ("DomainName", _, [ X.P domain_name ]) -> `D domain_name
-  | X.E ("NextToken", _, [ X.P next_token ]) -> `N next_token
-  | _ -> raise (Failure "ListDomainsResult.domain")
+(* Returns the domains in reverse order because of fold_left *)
+let list_domains_response_of_xml (node : X.node) : domain list * string option =
+  let domain_or_next_of_xml = function
+    | X.E ("DomainName", _, [ X.P domain_name ]) -> `D domain_name
+    | X.E ("NextToken", _, [ X.P next_token ])   -> `N next_token
+    | _ -> failwith "domain_or_next_of_xml" in
 
-let list_domains_response_of_xml = function
-  | X.E ("ListDomainsResponse", _, [
-    X.E ("ListDomainsResult", _, domain_or_next_list );
-    _ ]) ->
-    let domain_names, next_tokens = List.fold_left (
-      fun (domain_names, next_tokens) domain_or_next_xml ->
-        match domain_or_next_of_xml domain_or_next_xml with
-          | `D domain_name -> domain_name :: domain_names, next_tokens
-          | `N next_token -> domain_names, next_token :: next_tokens
-    ) ([],[]) domain_or_next_list in
-    (* preseve the order of domains in response *)
-    let domain_names = List.rev domain_names in
-    domain_names,
-    (* check that we have no more than one NextToken *)
-    (match next_tokens with
-      | [next_token] -> Some next_token
-      | [] -> None
-      | _ -> raise (Failure "ListDomainsResponse: more than one NextToken")
-    )
-  | _ -> raise (Failure "ListDomainsResult")
+  match node with
+    | X.E ("ListDomainsResponse", _, [ X.E ("ListDomainsResult", _, domain_or_next_list ); _ ]) ->
+      List.fold_left (
+        fun (domain_names, next_token) domain_or_next_xml ->
+          match domain_or_next_of_xml domain_or_next_xml with
+            | `D domain_name -> domain_name :: domain_names, next_token
+            | `N next_token  -> domain_names, Some next_token
+      ) ([], None) domain_or_next_list
+    | _ -> failwith "list_domains_response_of_xml"
 
 let attributes_of_xml encoded = function
   | X.E ("Attribute", _, [
@@ -93,42 +122,6 @@ let select_of_xml encoded = function
   ]) -> item_of_xml encoded [] None items
   | _ -> raise (Failure "SelectResponse")
 
-(* SDB data model *)
-
-type domain = string
-type attr = string
-type attr_value = string option
-type item = string
-type item_value = (attr * attr_value) list
-
-module type S = sig
-  exception Error of int * string
-
-  val list_domains : ?token:string -> creds:Creds.t -> unit -> (string list * string option) Lwt.t
-
-  val create_domain : creds:Creds.t -> domain -> unit Lwt.t
-
-  val delete_domain : creds:Creds.t -> domain -> unit Lwt.t
-
-  val put_attributes : ?replace:bool -> ?encode:bool -> creds:Creds.t ->
-    domain:domain -> item:item -> attrs:item_value -> unit -> unit Lwt.t
-
-  val batch_put_attributes : ?replace:bool -> ?encode:bool -> creds:Creds.t ->
-    domain:domain -> (item * item_value) list -> unit Lwt.t
-
-  val get_attributes : ?encoded:bool -> ?attribute:attr -> creds:Creds.t
-    -> domain:domain -> item:item -> unit -> item_value Lwt.t
-
-  val delete_attributes : ?encode:bool -> creds:Creds.t -> domain:domain -> item:item
-    -> attrs:item_value -> unit Lwt.t
-
-  val select : ?token:string -> ?consistent:bool -> ?encoded:bool -> creds:Creds.t -> string
-    -> ((item * item_value) list * string option) Lwt.t
-
-  val select_where_attribute_equals : ?token:string -> ?consistent:bool -> ?encoded:bool
-    -> creds:Creds.t -> domain:domain -> attr:attr -> value:string -> unit
-    -> ((item * item_value) list * string option) Lwt.t
-end
 
 module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
 
@@ -145,45 +138,49 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
           ])])) :: _ ) -> raise_lwt Error (int_of_string code, message)
       | _ -> raise_lwt Error (code, body)
 
-  (* list all domains *)
-  let list_domains ?token ~creds () =
-    let url, params = Util.signed_request ~service ~creds
-      ~params:(("Action", ["ListDomains"]) :: match token with
-          None -> []
-        | Some t -> [ "NextToken", [t] ]) () in
-
+  let call ~(creds:Creds.t) (params:(string * string list) list) : X.node Lwt.t =
     try_lwt
-       lwt header, body = HC.post
-         ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
-       let xml = X.xml_of_string body in
-       return (list_domains_response_of_xml xml)
+      let url, params = Util.signed_request ~service ~creds ~params () in
+      lwt header, body = HC.post
+        ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
+      Lwt.return (X.xml_of_string body)
     with HC.Http_error (code, _, body) -> raise_sdb_error code body
+
+  (* list all domains *)
+  (* TODO: Implement max results parameter *)
+  let list_domains ~creds () =
+
+    let call_one (token:string option) : (domain list * string option) Lwt.t =
+      let params = ("Action", ["ListDomains"]) ::
+        (match token with None -> [] | Some t -> ["NextToken", [t]]) in
+      lwt xml = call ~creds params in
+      Lwt.return (list_domains_response_of_xml xml)
+    in
+    let rec get_all_domains first acc token =
+      match first, acc, token with
+        | true, _, _ -> (* First call to AWS *)
+          lwt doms, token = call_one token in get_all_domains false doms token
+
+        | false, [], None -> (* No domains *)
+          Lwt.return []
+
+        | false, doms, None -> (* No more domains *)
+          Lwt.return (List.rev doms)
+
+        | false, doms, Some t -> (* More domains *)
+          lwt doms, token = call_one token in get_all_domains false doms token
+    in
+    get_all_domains true [] None
 
   (* create domain *)
   let create_domain ~creds name =
-    let url, params = Util.signed_request ~service ~creds ~params:[
-      "Action", ["CreateDomain"] ;
-      "DomainName", [name]
-    ] () in
-
-    try_lwt
-      lwt header, body = HC.post
-        ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
-      return ()
-    with HC.Http_error (code, _, body) -> raise_sdb_error code body
+    lwt (_:X.node) = call ~creds ["Action", ["CreateDomain"]; "DomainName", [name]] in
+    Lwt.return ()
 
   (* delete domain *)
   let delete_domain ~creds name =
-    let url, params = Util.signed_request ~service ~creds ~params:[
-      "Action", ["DeleteDomain"] ;
-      "DomainName", [name]
-    ] () in
-
-    try_lwt
-       lwt header, body = HC.post
-         ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
-       return ()
-    with HC.Http_error (code, _, body) -> raise_sdb_error code body
+    lwt (_:X.node) = call ~creds ["Action", ["DeleteDomain"]; "DomainName", [name]] in
+    Lwt.return ()
 
   (* put attributes *)
   let put_attributes ?(replace=false) ?(encode=true) ~creds ~domain ~item ~attrs () =
@@ -205,16 +202,9 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
           ) in
         i+1, acc
     ) (1, []) attrs in
-    let url, params = Util.signed_request ~service ~creds
-      ~params:(("Action", ["PutAttributes"])
-       :: ("DomainName", [domain])
-       :: ("ItemName", [b64enc_if encode item])
-       :: attrs') () in
-    try_lwt
-      lwt header, body = HC.post
-        ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
-      return ()
-    with HC.Http_error (code, _, body) -> raise_sdb_error code body
+    lwt (_:X.node) = call ~creds
+      (("Action", ["PutAttributes"]) :: ("DomainName", [domain]) :: ("ItemName", [b64enc_if encode item]) :: attrs') in 
+    Lwt.return ()
 
   (* batch put attributes *)
   let batch_put_attributes ?(replace=false) ?(encode=true) ~creds ~domain items =
@@ -239,16 +229,8 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
          ) (1, item_name_p :: acc) attrs in
          i+1, acc
       ) (1, []) items in
-
-    let url, params = Util.signed_request ~service ~creds
-      ~params:(("Action", ["BatchPutAttributes"])
-       :: ("DomainName", [domain])
-       :: attrs') () in
-    try_lwt
-      lwt header, body = HC.post
-        ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url 
-      in return ()
-    with HC.Http_error (code, _, body) ->  raise_sdb_error code body
+    lwt (_:X.node) = call ~creds (("Action", ["BatchPutAttributes"]) :: ("DomainName", [domain]) :: attrs') in
+    Lwt.return ()
 
   (* get attributes *)
   let get_attributes ?(encoded=true) ?attribute ~creds ~domain ~item () =
@@ -258,16 +240,10 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
         | Some attribute_name ->
             [ "AttributeName", [b64enc_if encoded attribute_name] ]
     in
-    let url, params = Util.signed_request ~service ~creds
-      ~params:(["Action", ["GetAttributes"];
-                "DomainName", [domain];
-                "ItemName", [b64enc_if encoded item]] @ attribute_name_p) ()
-    in
-    try_lwt
-      lwt header, body = HC.post ~body:(`String (Uri.encoded_of_query params)) url in
-      let xml = X.xml_of_string body in
-      return (get_attributes_response_of_xml encoded xml)
-    with HC.Http_error (code, _, body) ->  raise_sdb_error code body
+    lwt xml = call ~creds (["Action", ["GetAttributes"];
+                            "DomainName", [domain];
+                            "ItemName", [b64enc_if encoded item]] @ attribute_name_p) in
+    Lwt.return (get_attributes_response_of_xml encoded xml)
 
   (* delete attributes *)
   let delete_attributes ?(encode=true) ~creds ~domain ~item ~attrs =
@@ -279,16 +255,11 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
                       i+1, name_p :: value_p :: acc
           | None    -> i+1, name_p :: acc
     ) (0,[]) attrs in
-    let url, params = Util.signed_request ~service ~creds
-      ~params:(("Action", ["DeleteAttributes"])
-       :: ("DomainName", [domain])
-       :: ("ItemName", [b64enc_if encode item])
-       :: attrs') () in
-    try_lwt
-       lwt header, body = HC.post
-         ~body:(`String (Uri.encoded_of_query ~value_component:`RFC3986 params)) url in
-       return ()
-    with HC.Http_error (code, _, body) -> raise_sdb_error code body
+    lwt (_:X.node) = call ~creds (("Action", ["DeleteAttributes"])
+                                  :: ("DomainName", [domain])
+                                  :: ("ItemName", [b64enc_if encode item])
+                                  :: attrs') in
+    Lwt.return ()
 
   (* select: TODO if [encode=true], encode references to values in the
      select [expression].  This might not be easy, as the [expression]
@@ -298,20 +269,13 @@ module Make(HC : Aws_sigs.HTTP_CLIENT) : S = struct
      constraints.  *)
 
   let select ?token ?(consistent=false) ?(encoded=true) ~creds expression =
-    let url, params = Util.signed_request ~service ~creds
-      ~params:(("Action", ["Select"])
-       :: ("SelectExpression", [expression])
-       :: ("ConsistentRead", [sprint "%B" consistent])
-       :: (match token with
-         | None -> []
-         | Some t -> [ "NextToken", [t] ])) () in
-    try_lwt
-      let uri_query_component = Uri.encoded_of_query ~value_component:`RFC3986 params in
-      lwt header, body = HC.post
-        ~body:(`String uri_query_component) url in
-      let xml = X.xml_of_string body in
-      return (select_of_xml encoded xml)
-    with HC.Http_error (code, _, body) -> raise_sdb_error code body
+    lwt xml =  call ~creds (("Action", ["Select"])
+                            :: ("SelectExpression", [expression])
+                            :: ("ConsistentRead", [sprint "%B" consistent])
+                            :: (match token with
+                              | None -> []
+                              | Some t -> [ "NextToken", [t] ])) in
+    Lwt.return (select_of_xml encoded xml)
 
   (* select all records where attribute [name] equals [value] *)
   let select_where_attribute_equals ?token ?(consistent=false) ?(encoded=true)
