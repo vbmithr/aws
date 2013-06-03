@@ -5,14 +5,14 @@ and attr = (string * string) * string
 
 let xml_of_string s =
   (* we drop the namespace part of the element here *)
-  let el ((ns, name), atts) kids = E (name, atts, kids) in
+  let el ((ns, name), atts) children = E (name, atts, children) in
   let data d = P d in
   let input = Xmlm.make_input ~strip:true (`String (0,s)) in
   let _, node = Xmlm.input_doc_tree ~el ~data input in
   node
 
 let frag = function
-  | E (name, attrs, kids) -> `El ((("", name), attrs), kids)
+  | E (name, attrs, children) -> `El ((("", name), attrs), children)
   | P d -> `Data d
 
 let string_of_xml x =
